@@ -8,7 +8,6 @@ DEP_DIR := ./dep
 TESTS_DIR := ./test
 PROJECT_NAME := $(shell basename $(CURDIR))
 
-CVRG_INFO := $(OBJ_DIR)/coverage.info
 SRC_FILES := $(shell find $(SRC_DIR) -name '*.cpp')
 OBJ_FILES := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/$(SRC_DIR)/%.o,$(SRC_FILES))
 TEST_SRC_FILES := $(shell find $(TESTS_DIR) -name '*.cpp')
@@ -23,7 +22,6 @@ CFLAGS := -w -Wall -g -std=c++11 -I$(INC_DIR)
 LIBS := #ex: -lthirdpary
 VERSION := 0.1
 LIB_LDFLAGS := -shared -Wl,-zdefs,-soname,$(PROJECT_NAME).so.$(VERSION)
-BIN_LDFLAGS := #-Wl,-rpath='$$ORIGIN/../$(LIB_DIR)'
 
 all: shared test
 
@@ -65,7 +63,7 @@ $(TEST_FILE): $(TEST_OBJ_FILES)
 	@mkdir -p $(@D)
 	$(eval LIB_FILES := $(shell find $(LIB_DIR) -regex ".*\.\(so\|a\)" -printf "%f" -quit))
 	$(if $(LIB_FILES), $(eval EXEC_LIBS := -L$(LIB_DIR) -l:$(LIB_FILES)))
-	$(CC) $(CVRG) -g $? -o $@ $(BIN_LDFLAGS) $(EXEC_LIBS) $(LIBS)
+	$(CC) $(CVRG) -g $? -o $@ $(EXEC_LIBS) $(LIBS)
 
 .PHONY: init all coverage shared static exec run clean
 
