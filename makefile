@@ -31,8 +31,9 @@ CFLAGS := -m$(ARCH) -Wall -Wconversion -Werror -g -std=c++11 -I$(INC_DIR)
 CFLAGS_DEBUG := -DDEBUG
 CFLAGS_RELEASE := -O3
 LIBS := #ex: -lthirdpary
-LIB_LDFLAGS :=  -m$(ARCH) -shared -Wl,-zdefs,-soname,$(SO_LN_FILE),-rpath,'$$ORIGIN'
-EXEC_LD_FLAGS := -m$(ARCH) -Wl,-rpath,'$$ORIGIN/lib:$$ORIGIN/dep:$$ORIGIN/../../../$(LIB_DIR)'
+LDFLAGS := -m$(ARCH)
+SO_LDFLAGS := -shared -Wl,-zdefs,-soname,$(SO_LN_FILE),-rpath,'$$ORIGIN'
+TEST_LDFLAGS := -Wl,-rpath,'$$ORIGIN/lib:$$ORIGIN/dep:$$ORIGIN/../../../$(LIB_DIR)'
 
 ifeq ($(BUILD),debug)
 	CFLAGS += $(CFLAGS_DEBUG)
@@ -41,34 +42,42 @@ else ifeq ($(BUILD),release)
 	SO_DBG_FILE := $(SO_FILE).dbg
 	A_DBG_FILE := $(A_FILE).dbg
 	EXEC_DBG_FILE := $(EXEC_FILE).dbg
+else ifeq ($(BUILD),coverage)
+	CFLAGS += --coverage
+	LDFLAGS += --coverage
+else
+$(error "allowed BUILD values are debug, release, coverage")
 endif
 
 all: shared test
 
-coverage: CVRG := --coverage
-coverage: all run
+shared: $(LIB_DIR)/$(SO_FILE) $(LIB_DIR)/$(SO_DBG_FILE)
+
+static: $(LIB_DIR)/$(A_FILE) $(LIB_DIR)/$(A_DBG_FILE)
+
+exec: $(BIN_DIR)/$(EXEC_FILE) $(BIN_DIR)/$(EXEC_DBG_FILE)
+
+test: $(TEST_BIN_DIR)/$(TEST_FILE)
+
+run: test
+	$(TEST_BIN_DIR)/$(TEST_FILE)
+ifeq ($(BUILD),coverage)
 	lcov --quiet -c --directory . --output-file $(OBJ_DIR)/.info --no-external
 	genhtml --quiet $(OBJ_DIR)/.info --output-directory $(COV_REPORTS_DIR)
 	xdg-open $(COV_REPORTS_DIR)/index.html
-
-shared: $(LIB_DIR)/$(SO_FILE) $(LIB_DIR)/$(SO_DBG_FILE)
-static: $(LIB_DIR)/$(A_FILE) $(LIB_DIR)/$(A_DBG_FILE)
-exec: $(BIN_DIR)/$(EXEC_FILE) $(BIN_DIR)/$(EXEC_DBG_FILE)
-test: $(TEST_BIN_DIR)/$(TEST_FILE)
-run: test
-	$(TEST_BIN_DIR)/$(TEST_FILE)
+endif
 
 $(OBJ_DIR)/$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(@D) $(DEP_DIR)/$(<D)
-	$(CC) $(CFLAGS) $(CVRG) -fPIC -c -o $@ $< -MMD -MF $(DEP_DIR)/$<.dep
+	$(CC) $(CFLAGS) -fPIC -c -o $@ $< -MMD -MF $(DEP_DIR)/$<.dep
 
 $(OBJ_DIR)/$(TEST_SRC_DIR)/%.o: $(TEST_SRC_DIR)/%.cpp
 	@mkdir -p $(@D) $(DEP_DIR)/$(<D)
-	$(CC) $(CFLAGS) $(CVRG) -c -o $@ $< -MMD -MF $(DEP_DIR)/$<.dep
+	$(CC) $(CFLAGS) -c -o $@ $< -MMD -MF $(DEP_DIR)/$<.dep
 
 $(LIB_DIR)/$(SO_FILE): $(OBJ_FILES)
 	@mkdir -p $(@D)
-	$(CC) $(CVRG) -g -o $@ $^ $(LIB_LDFLAGS) $(LIBS)
+	$(CC) -g -o $@ $^ $(LDFLAGS) $(SO_LDFLAGS) $(LIBS)
 	ln -sf ./$(SO_FILE) $(LIB_DIR)/$(SO_LN_FILE)
 
 $(LIB_DIR)/$(A_FILE): $(OBJ_FILES)
@@ -78,7 +87,7 @@ $(LIB_DIR)/$(A_FILE): $(OBJ_FILES)
 
 $(BIN_DIR)/$(EXEC_FILE): $(OBJ_FILES)
 	@mkdir -p $(@D)
-	$(CC) $(CVRG) -g $? -o $@ $(LIBS)
+	$(CC) -g $? -o $@ $(LDFLAGS) $(LIBS)
 
 %.dbg: %
 	objcopy --only-keep-debug $< $@
@@ -87,15 +96,15 @@ $(BIN_DIR)/$(EXEC_FILE): $(OBJ_FILES)
 $(TEST_BIN_DIR)/$(TEST_FILE): $(TEST_OBJ_FILES)
 	@mkdir -p $(@D)
 	$(eval EXEC_LIBS := $(shell find \( -name "$(SO_LN_FILE)" -o -name "$(A_LN_FILE)" \)))
-	$(CC) $(CVRG) -g $^ -o $@ $(EXEC_LD_FLAGS) $(LIBS) -L$(LIB_DIR) -l:$(EXEC_LIBS) 
-
-.PHONY: init all coverage shared static exec run clean
+	$(CC) -g $^ -o $@ $(LDFLAGS) $(TEST_LDFLAGS) $(LIBS) -L$(LIB_DIR) -l:$(EXEC_LIBS) 
 
 init:
 	$(shell mkdir -p $(SRC_DIR) $(INC_DIR) $(OBJ_DIR) $(BIN_DIR) $(LIB_DIR) $(DEP_DIR) $(TEST_SRC_DIR) $(TEST_BIN_DIR) $(DOCS_DIR))
 
 clean:
 	rm -f $(OBJ_FILES) $(TEST_OBJ_FILES) $(LIB_DIR)/$(SO_FILE) $(LIB_DIR)/$(SO_FILE).dbg $(LIB_DIR)/$(SO_LN_FILE) $(LIB_DIR)/$(A_FILE) $(LIB_DIR)/$(A_FILE).dbg $(LIB_DIR)/$(A_LN_FILE) $(BIN_DIR)/$(EXEC_FILE) $(BIN_DIR)/$(EXEC_FILE).dbg $(TEST_BIN_DIR)/$(TEST_FILE)
+
+.PHONY: init all shared static exec run clean
 
 -include  $(shell find $(DEP_DIR) -name '*.dep')/
 

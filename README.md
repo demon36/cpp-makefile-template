@@ -1,25 +1,31 @@
 # cpp-makefile-template
 this is a makefile that aims towards letting you build a linux c++ project with the least amount of configuration
 
-### targets:
+### usage examples:
 
 `make init`
 creates the basic directory structure shown below
 
-`make shared` or `make static`
-builds .cpp files in src directory into a shared object/static archive in lib directory
+`make shared BUILD=release`
+builds source files in `./src` with `-O3` into a stripped shared object file in `./lib` directory with separate debug symbols in a .dbg file
 
-`make exec`
-builds .cpp files in src directory into an executable in bin directory
+`make static`
+builds source files in `./src` into a static archive in `./lib` directory with debug symbols included
+
+`make exec BUILD=debug`
+builds source files in `./src` into an executable in `./bin` directory with debug symbols included
 
 `make test`
-builds .cpp files in test directory into an executable that is linked against the first shared/static lib file it finds in lib directory 
+builds source files in `./test` into an executable that is linked against the first shared/static lib file it finds in lib directory 
 
 `make run`
 runs the output test executable
 
-`make coverage`
--experimental- makes a build with `--coverage` flag, generates and displays web report
+```
+make BUILD=coverage
+make run BUILD=coverage
+```
+builds the target set in `all` with `--coverage` flag, run tests, generates web report in `./doc` and opens it using system default web browser
 
 ### features
 
@@ -29,11 +35,12 @@ runs the output test executable
 - 32/64bit builds support, usage: `make ARCH=32`, `make ARCH=64` -default is system arch-
 - debug and release builds support, usage: `make BUILD=release` or `make BUILD=debug` -default is debug-
 - rpath embedding
-
+- coverage reports
 
 ### remarks
 
 - output executable/shared object/static archive name is determined from project directory name
+- `lcov` is needed for coverage
 
 ### example directory structure
 
