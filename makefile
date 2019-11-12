@@ -16,14 +16,13 @@ MAJOR_VERSION := 0
 MINOR_VERSION := 1.9
 
 SRC_FILES := $(shell find $(SRC_DIR) -regex '.*\.\(c\|cc\|cpp\|cxx\)')
-OBJ_FILES := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/$(SRC_DIR)/%.o,$(SRC_FILES))
+OBJ_FILES := $(patsubst $(SRC_DIR)/%,$(OBJ_DIR)/$(SRC_DIR)/%.o,$(SRC_FILES))
+DEP_FILES := $(patsubst $(SRC_DIR)/%,$(DEP_DIR)/$(SRC_DIR)/%.dep,$(SRC_FILES)) $(patsubst $(TEST_SRC_DIR)/%,$(DEP_DIR)/$(TEST_SRC_DIR)/%.dep,$(TEST_SRC_FILES))
 TEST_SRC_FILES := $(shell find $(TEST_SRC_DIR) -regex '.*\.\(c\|cc\|cpp\|cxx\)')
-TEST_OBJ_FILES := $(patsubst $(TEST_SRC_DIR)/%.cpp,$(OBJ_DIR)/$(TEST_SRC_DIR)/%.o,$(TEST_SRC_FILES))
+TEST_OBJ_FILES := $(patsubst $(TEST_SRC_DIR)/%,$(OBJ_DIR)/$(TEST_SRC_DIR)/%.o,$(TEST_SRC_FILES))
 
-SO_FILE := $(PROJECT_NAME).so.$(MAJOR_VERSION).$(MINOR_VERSION)
-SO_LN_FILE := $(PROJECT_NAME).so.$(MAJOR_VERSION)
-A_FILE := $(PROJECT_NAME).a.$(MAJOR_VERSION).$(MINOR_VERSION)
-A_LN_FILE := $(PROJECT_NAME).a.$(MAJOR_VERSION)
+SO_FILE := $(PROJECT_NAME).so
+A_FILE := $(PROJECT_NAME).a
 EXEC_FILE := $(PROJECT_NAME)
 TEST_FILE := main_test
 
@@ -32,8 +31,8 @@ CFLAGS_DEBUG := -DDEBUG
 CFLAGS_RELEASE := -O3
 LIBS := #ex: -lthirdpary
 LDFLAGS := -m$(ARCH)
-SO_LDFLAGS := -shared -Wl,-zdefs,-soname,$(SO_LN_FILE),-rpath,'$$ORIGIN'
-TEST_LDFLAGS := -Wl,-rpath,'$$ORIGIN/lib:$$ORIGIN/dep:$$ORIGIN/../../../$(LIB_DIR)'
+SO_LDFLAGS := -shared -Wl,-zdefs,-soname,$(SO_FILE).$(MAJOR_VERSION),-rpath,'$$ORIGIN'
+TEST_LDFLAGS := -L$(LIB_DIR) -l:$(SO_FILE) -Wl,-rpath,'$$ORIGIN/lib:$$ORIGIN/dep:$$ORIGIN/../../../$(LIB_DIR)'
 
 ifeq ($(BUILD),debug)
 	CFLAGS += $(CFLAGS_DEBUG)
@@ -51,13 +50,13 @@ endif
 
 all: shared test
 
-shared: $(LIB_DIR)/$(SO_FILE) $(LIB_DIR)/$(SO_DBG_FILE)
+shared: depend $(LIB_DIR)/$(SO_FILE) $(LIB_DIR)/$(SO_DBG_FILE)
 
-static: $(LIB_DIR)/$(A_FILE) $(LIB_DIR)/$(A_DBG_FILE)
+static: $(LIB_DIR)/$(A_FILE)
 
 exec: $(BIN_DIR)/$(EXEC_FILE) $(BIN_DIR)/$(EXEC_DBG_FILE)
 
-test: $(TEST_BIN_DIR)/$(TEST_FILE)
+test: shared $(TEST_BIN_DIR)/$(TEST_FILE)
 
 run: test
 	$(TEST_BIN_DIR)/$(TEST_FILE)
@@ -67,50 +66,65 @@ ifeq ($(BUILD),coverage)
 	xdg-open $(COV_REPORTS_DIR)/index.html
 endif
 
-$(OBJ_DIR)/$(SRC_DIR)/%.o: $(SRC_DIR)/%.cpp
+$(OBJ_DIR)/$(SRC_DIR)/%.o: $(SRC_DIR)/%
 	@mkdir -p $(@D) $(DEP_DIR)/$(<D)
 	$(CC) $(CFLAGS) -fPIC -c -o $@ $< -MMD -MF $(DEP_DIR)/$<.dep
 
-$(OBJ_DIR)/$(TEST_SRC_DIR)/%.o: $(TEST_SRC_DIR)/%.cpp
+$(OBJ_DIR)/$(TEST_SRC_DIR)/%.o: $(TEST_SRC_DIR)/%
 	@mkdir -p $(@D) $(DEP_DIR)/$(<D)
 	$(CC) $(CFLAGS) -c -o $@ $< -MMD -MF $(DEP_DIR)/$<.dep
 
 $(LIB_DIR)/$(SO_FILE): $(OBJ_FILES)
 	@mkdir -p $(@D)
-	$(CC) -g -o $@ $^ $(LDFLAGS) $(SO_LDFLAGS) $(LIBS)
-	ln -sf ./$(SO_FILE) $(LIB_DIR)/$(SO_LN_FILE)
+	$(CC) -g -o $@.$(MAJOR_VERSION).$(MINOR_VERSION) $(OBJ_FILES) $(LDFLAGS) $(SO_LDFLAGS) $(LIBS)
+	ln -sf ./$(SO_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(SO_FILE).$(MAJOR_VERSION)
+	ln -sf ./$(SO_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(SO_FILE)
+
+#install --prefix=./vendor
+depend:
+#	$(MAKE) -C $(DEP_LIB1) 
+#for color in $(DEP_PROJ_DIRS); do \
+#	$(MAKE) -C $(color) \
+#done;  
 
 $(LIB_DIR)/$(A_FILE): $(OBJ_FILES)
 	@mkdir -p $(@D)
-	ar rcs $@ $^
-	ln -sf ./$(A_FILE) $(LIB_DIR)/$(A_LN_FILE)
+	ar rcs $@.$(MAJOR_VERSION).$(MINOR_VERSION) $^
+	ln -sf ./$(A_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(A_FILE).$(MAJOR_VERSION)
+	ln -sf ./$(A_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(A_FILE)
 
 $(BIN_DIR)/$(EXEC_FILE): $(OBJ_FILES)
 	@mkdir -p $(@D)
-	$(CC) -g $? -o $@ $(LDFLAGS) $(LIBS)
+	$(CC) -g $? -o $@.$(MAJOR_VERSION).$(MINOR_VERSION) $(LDFLAGS) $(LIBS)
+	ln -sf ./$(EXEC_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(EXEC_FILE).$(MAJOR_VERSION)
+	ln -sf ./$(EXEC_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(EXEC_FILE)
 
 %.dbg: %
 	objcopy --only-keep-debug $< $@
 	objcopy --strip-unneeded $< $<
+	objcopy --add-gnu-debuglink=$< $@
 
 $(TEST_BIN_DIR)/$(TEST_FILE): $(TEST_OBJ_FILES)
 	@mkdir -p $(@D)
-	$(eval EXEC_LIBS := $(shell find \( -name "$(SO_LN_FILE)" -o -name "$(A_LN_FILE)" \)))
-	$(CC) -g $^ -o $@ $(LDFLAGS) $(TEST_LDFLAGS) $(LIBS) -L$(LIB_DIR) -l:$(EXEC_LIBS) 
+	$(CC) -g $^ -o $@ $(LDFLAGS) $(TEST_LDFLAGS) $(LIBS) 
 
 init:
-	$(shell mkdir -p $(SRC_DIR) $(INC_DIR) $(OBJ_DIR) $(BIN_DIR) $(LIB_DIR) $(DEP_DIR) $(TEST_SRC_DIR) $(TEST_BIN_DIR) $(DOCS_DIR))
+	mkdir -p $(SRC_DIR) $(INC_DIR) $(OBJ_DIR) $(BIN_DIR) $(LIB_DIR) $(DEP_DIR) $(TEST_SRC_DIR) $(TEST_BIN_DIR) $(DOCS_DIR)
 
 clean:
-	rm -f $(OBJ_FILES) $(TEST_OBJ_FILES) $(LIB_DIR)/$(SO_FILE) $(LIB_DIR)/$(SO_FILE).dbg $(LIB_DIR)/$(SO_LN_FILE) $(LIB_DIR)/$(A_FILE) $(LIB_DIR)/$(A_FILE).dbg $(LIB_DIR)/$(A_LN_FILE) $(BIN_DIR)/$(EXEC_FILE) $(BIN_DIR)/$(EXEC_FILE).dbg $(TEST_BIN_DIR)/$(TEST_FILE)
+	rm -f $(OBJ_FILES) $(TEST_OBJ_FILES) \
+	$(LIB_DIR)/$(SO_FILE) $(SO_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(SO_FILE).$(MAJOR_VERSION) $(LIB_DIR)/$(SO_FILE).dbg \
+	$(LIB_DIR)/$(A_FILE) $(A_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(A_FILE).$(MAJOR_VERSION) $(LIB_DIR)/$(A_FILE).dbg \
+	$(BIN_DIR)/$(EXEC_FILE) $(EXEC_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(EXEC_FILE).$(MAJOR_VERSION) $(BIN_DIR)/$(EXEC_FILE).dbg \
+	$(TEST_BIN_DIR)/$(TEST_FILE) $(DEP_FILES)
 
-.PHONY: init all shared static exec run clean
+.PHONY: init all shared static exec run clean depend
 
--include  $(shell find $(DEP_DIR) -name '*.dep')/
+-include $(shell test -d $(DEP_DIR) && find $(DEP_DIR) -name '*.dep')
 
-#todo: make tests depend on shared/static lib
+#todo: add an extra target for the symlink itself
+#todo: add target cleanall
+#todo: add rebuild target
 #todo: add section for other makefile deps
 #todo: support pkg-config
-#todo: replace blind test linking
 #todo: support excluding source files from build
-#todo: support making a test for an executable project 

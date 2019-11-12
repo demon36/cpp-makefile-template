@@ -21,11 +21,8 @@ builds source files in `./test` into an executable that is linked against the fi
 `make run`
 runs the output test executable
 
-```
-make BUILD=coverage
-make run BUILD=coverage
-```
-builds the target set in `all` with `--coverage` flag, run tests, generates web report in `./doc` and opens it using system default web browser
+`make run BUILD=coverage`
+builds test sources with `--coverage` flag, run tests, generates web report in `./doc` and opens it using system default web browser
 
 ### features
 
@@ -92,6 +89,7 @@ libtest
 ### todo
 
 - make use of pkg-config
+- support nested local deps
 - add install target
 - support more architectures
 - support packaging via [fpm](https://github.com/jordansissel/fpm)
