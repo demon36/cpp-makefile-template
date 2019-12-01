@@ -15,10 +15,10 @@ PROJECT_NAME := $(shell basename $(CURDIR))
 MAJOR_VERSION := 0
 MINOR_VERSION := 1.9
 
-SRC_FILES := $(shell find $(SRC_DIR) -regex '.*\.\(c\|cc\|cpp\|cxx\)')
+SRC_FILES := $(shell test -d $(SRC_DIR) && find $(SRC_DIR) -regex '.*\.\(c\|cc\|cpp\|cxx\)')
 OBJ_FILES := $(patsubst $(SRC_DIR)/%,$(OBJ_DIR)/$(SRC_DIR)/%.o,$(SRC_FILES))
 DEP_FILES := $(patsubst $(SRC_DIR)/%,$(DEP_DIR)/$(SRC_DIR)/%.dep,$(SRC_FILES)) $(patsubst $(TEST_SRC_DIR)/%,$(DEP_DIR)/$(TEST_SRC_DIR)/%.dep,$(TEST_SRC_FILES))
-TEST_SRC_FILES := $(shell find $(TEST_SRC_DIR) -regex '.*\.\(c\|cc\|cpp\|cxx\)')
+TEST_SRC_FILES := $(shell test -d $(TEST_SRC_DIR) && find $(TEST_SRC_DIR) -regex '.*\.\(c\|cc\|cpp\|cxx\)')
 TEST_OBJ_FILES := $(patsubst $(TEST_SRC_DIR)/%,$(OBJ_DIR)/$(TEST_SRC_DIR)/%.o,$(TEST_SRC_FILES))
 
 SO_FILE := $(PROJECT_NAME).so
@@ -26,9 +26,9 @@ A_FILE := $(PROJECT_NAME).a
 EXEC_FILE := $(PROJECT_NAME)
 TEST_FILE := main_test
 
-CFLAGS := -m$(ARCH) -Wall -Wconversion -Werror -g -std=c++11 -I$(INC_DIR)
+CFLAGS := -m$(ARCH) -Wall -Wconversion -Werror -g -std=c++11 -I$(INC_DIR) $(CFLAGS)
 CFLAGS_DEBUG := -DDEBUG
-CFLAGS_RELEASE := -O3
+CFLAGS_RELEASE := -O3 -w
 LIBS := #ex: -lthirdpary
 LDFLAGS := -m$(ARCH)
 SO_LDFLAGS := -shared -Wl,-zdefs,-soname,$(SO_FILE).$(MAJOR_VERSION),-rpath,'$$ORIGIN'
@@ -96,8 +96,8 @@ $(LIB_DIR)/$(A_FILE): $(OBJ_FILES)
 $(BIN_DIR)/$(EXEC_FILE): $(OBJ_FILES)
 	@mkdir -p $(@D)
 	$(CC) -g $? -o $@.$(MAJOR_VERSION).$(MINOR_VERSION) $(LDFLAGS) $(LIBS)
-	ln -sf ./$(EXEC_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(EXEC_FILE).$(MAJOR_VERSION)
-	ln -sf ./$(EXEC_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(EXEC_FILE)
+	ln -sf ./$(EXEC_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(BIN_DIR)/$(EXEC_FILE).$(MAJOR_VERSION)
+	ln -sf ./$(EXEC_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(BIN_DIR)/$(EXEC_FILE)
 
 %.dbg: %
 	objcopy --only-keep-debug $< $@
