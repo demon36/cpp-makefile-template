@@ -26,10 +26,12 @@ A_FILE := $(PROJECT_NAME).a
 EXEC_FILE := $(PROJECT_NAME)
 TEST_FILE := main_test
 
-CFLAGS := -m$(ARCH) -Wall -Wconversion -Werror -g -std=c++11 -I$(INC_DIR) $(CFLAGS)
+CFLAGS := -m$(ARCH) -Wall -Wconversion -Werror -g -std=c++11 -I$(INC_DIR) 
 CFLAGS_DEBUG := -DDEBUG
 CFLAGS_RELEASE := -O3 -w
-LIBS := #ex: -lthirdpary
+INC := #ex: -I./ext/thirdparty
+LIBS := #ex: -L./ext/thirdparty/lib -lthirdpary
+
 LDFLAGS := -m$(ARCH)
 SO_LDFLAGS := -shared -Wl,-zdefs,-soname,$(SO_FILE).$(MAJOR_VERSION),-rpath,'$$ORIGIN'
 TEST_LDFLAGS := -L$(LIB_DIR) -l:$(SO_FILE) -Wl,-rpath,'$$ORIGIN/lib:$$ORIGIN/dep:$$ORIGIN/../../../$(LIB_DIR)'
@@ -68,15 +70,15 @@ endif
 
 $(OBJ_DIR)/$(SRC_DIR)/%.o: $(SRC_DIR)/%
 	@mkdir -p $(@D) $(DEP_DIR)/$(<D)
-	$(CC) $(CFLAGS) -fPIC -c -o $@ $< -MMD -MF $(DEP_DIR)/$<.dep
+	$(CC) $(CFLAGS) $(INC) -fPIC -c -o $@ $< -MMD -MF $(DEP_DIR)/$<.dep
 
 $(OBJ_DIR)/$(TEST_SRC_DIR)/%.o: $(TEST_SRC_DIR)/%
 	@mkdir -p $(@D) $(DEP_DIR)/$(<D)
-	$(CC) $(CFLAGS) -c -o $@ $< -MMD -MF $(DEP_DIR)/$<.dep
+	$(CC) $(CFLAGS) $(INC) -c -o $@ $< -MMD -MF $(DEP_DIR)/$<.dep
 
 $(LIB_DIR)/$(SO_FILE): $(OBJ_FILES)
 	@mkdir -p $(@D)
-	$(CC) -g -o $@.$(MAJOR_VERSION).$(MINOR_VERSION) $(OBJ_FILES) $(LDFLAGS) $(SO_LDFLAGS) $(LIBS)
+	$(CC) -g -o $@.$(MAJOR_VERSION).$(MINOR_VERSION) $(OBJ_FILES) $(LIBS) $(LDFLAGS) $(SO_LDFLAGS)
 	ln -sf ./$(SO_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(SO_FILE).$(MAJOR_VERSION)
 	ln -sf ./$(SO_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(SO_FILE)
 
