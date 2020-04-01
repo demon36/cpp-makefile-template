@@ -30,14 +30,12 @@ builds test sources with `--coverage` flag, run tests, generates web report in `
 - source directories nesting support for `./src` and `./test`
 - Linux library versioning, usage: edit `MAJOR_VERSION` & `MINOR_VERSION`
 - 32/64bit builds support, usage: `make ARCH=32`, `make ARCH=64` -default is system arch-
-- debug and release builds support, usage: `make BUILD=release` or `make BUILD=debug` -default is debug-
-- rpath embedding
-- coverage reports
-
-### remarks
-
-- output executable/shared object/static archive name is determined from project directory name
-- `lcov` is needed for coverage
+- 3 types of builds:
+	+ `debug`: default build
+	+ `release`: has `-O3` optimization level and separate debug symbols with debug link in elf file
+	+ `coverage`: output binaries generate coverage reports in `html` directory (`lcov` package required for that)
+- `rpath` set to $ORIGIN by default
+- library/executable file names are determined from project directory name
 
 ### example directory structure
 

@@ -16,17 +16,17 @@ MAJOR_VERSION := 0
 MINOR_VERSION := 1.9
 
 SRC_FILES := $(shell test -d $(SRC_DIR) && find $(SRC_DIR) -regex '.*\.\(c\|cc\|cpp\|cxx\)')
-OBJ_FILES := $(patsubst $(SRC_DIR)/%,$(OBJ_DIR)/$(SRC_DIR)/%.o,$(SRC_FILES))
-DEP_FILES := $(patsubst $(SRC_DIR)/%,$(DEP_DIR)/$(SRC_DIR)/%.dep,$(SRC_FILES)) $(patsubst $(TEST_SRC_DIR)/%,$(DEP_DIR)/$(TEST_SRC_DIR)/%.dep,$(TEST_SRC_FILES))
 TEST_SRC_FILES := $(shell test -d $(TEST_SRC_DIR) && find $(TEST_SRC_DIR) -regex '.*\.\(c\|cc\|cpp\|cxx\)')
+OBJ_FILES := $(patsubst $(SRC_DIR)/%,$(OBJ_DIR)/$(SRC_DIR)/%.o,$(SRC_FILES))
 TEST_OBJ_FILES := $(patsubst $(TEST_SRC_DIR)/%,$(OBJ_DIR)/$(TEST_SRC_DIR)/%.o,$(TEST_SRC_FILES))
+DEP_FILES := $(patsubst $(SRC_DIR)/%,$(DEP_DIR)/$(SRC_DIR)/%.dep,$(SRC_FILES)) $(patsubst $(TEST_SRC_DIR)/%,$(DEP_DIR)/$(TEST_SRC_DIR)/%.dep,$(TEST_SRC_FILES))
 
 SO_FILE := $(PROJECT_NAME).so
 A_FILE := $(PROJECT_NAME).a
 EXEC_FILE := $(PROJECT_NAME)
 TEST_FILE := main_test
 
-CFLAGS := -m$(ARCH) -Wall -Wconversion -Werror -g -std=c++11 -I$(INC_DIR) 
+CFLAGS := -m$(ARCH) -Wall -Wconversion -Werror -g -std=c++17 -I$(INC_DIR) 
 CFLAGS_DEBUG := -DDEBUG
 CFLAGS_RELEASE := -O3 -w
 INC := #ex: -I./ext/thirdparty
@@ -41,7 +41,6 @@ ifeq ($(BUILD),debug)
 else ifeq ($(BUILD),release)
 	CFLAGS += $(CFLAGS_RELEASE)
 	SO_DBG_FILE := $(SO_FILE).dbg
-	A_DBG_FILE := $(A_FILE).dbg
 	EXEC_DBG_FILE := $(EXEC_FILE).dbg
 else ifeq ($(BUILD),coverage)
 	CFLAGS += --coverage
@@ -49,8 +48,6 @@ else ifeq ($(BUILD),coverage)
 else
 $(error "allowed BUILD values are debug, release, coverage")
 endif
-
-all: shared test
 
 shared: depend $(LIB_DIR)/$(SO_FILE) $(LIB_DIR)/$(SO_DBG_FILE)
 
@@ -78,12 +75,12 @@ $(OBJ_DIR)/$(TEST_SRC_DIR)/%.o: $(TEST_SRC_DIR)/%
 
 $(LIB_DIR)/$(SO_FILE): $(OBJ_FILES)
 	@mkdir -p $(@D)
-	$(CC) -g -o $@.$(MAJOR_VERSION).$(MINOR_VERSION) $(OBJ_FILES) $(LIBS) $(LDFLAGS) $(SO_LDFLAGS)
+	$(CC) -g -o $@.$(MAJOR_VERSION).$(MINOR_VERSION) $(OBJ_FILES) $(LDFLAGS) $(SO_LDFLAGS) $(LIBS)
 	ln -sf ./$(SO_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(SO_FILE).$(MAJOR_VERSION)
 	ln -sf ./$(SO_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(LIB_DIR)/$(SO_FILE)
 
 #install --prefix=./vendor
-depend:
+# depend:
 #	$(MAKE) -C $(DEP_LIB1) 
 #for color in $(DEP_PROJ_DIRS); do \
 #	$(MAKE) -C $(color) \
@@ -97,7 +94,7 @@ $(LIB_DIR)/$(A_FILE): $(OBJ_FILES)
 
 $(BIN_DIR)/$(EXEC_FILE): $(OBJ_FILES)
 	@mkdir -p $(@D)
-	$(CC) -g $? -o $@.$(MAJOR_VERSION).$(MINOR_VERSION) $(LDFLAGS) $(LIBS)
+	$(CC) -g $^ -o $@.$(MAJOR_VERSION).$(MINOR_VERSION) $(LDFLAGS) $(LIBS)
 	ln -sf ./$(EXEC_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(BIN_DIR)/$(EXEC_FILE).$(MAJOR_VERSION)
 	ln -sf ./$(EXEC_FILE).$(MAJOR_VERSION).$(MINOR_VERSION) $(BIN_DIR)/$(EXEC_FILE)
 
